@@ -5,13 +5,13 @@ use anyhow::{Context, Result};
 use crate::{positive_decimal::PositiveDecimal, UnsignedDecimal};
 
 /// Any type that represents an asset type.
-pub trait Asset: Ord + std::fmt::Debug {
+pub trait Asset: Ord + std::fmt::Debug + Default {
     fn as_str() -> &'static str;
 }
 
 macro_rules! make_asset {
     ($i:ident, $name:expr) => {
-        #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+        #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
         pub struct $i;
         impl Asset for $i {
             /// $desc
@@ -106,17 +106,26 @@ impl<T: Asset> FromStr for PositiveAsset<T> {
     }
 }
 
-fn split_amount_asset(s: &str) -> Result<(&str, &str)> {
+pub(crate) fn split_amount_asset(s: &str) -> Result<(&str, &str)> {
     let idx = s
         .find(|c: char| !(c.is_ascii_digit() || c == '.' || c == '-'))
         .context("No asset type found")?;
     Ok(s.split_at(idx))
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct UnsignedAsset<T> {
     value: UnsignedDecimal,
     _phantom: PhantomData<T>,
+}
+
+impl<T> UnsignedAsset<T> {
+    pub fn new(_: T, value: UnsignedDecimal) -> Self {
+        UnsignedAsset {
+            value,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<T: Asset> serde::Serialize for UnsignedAsset<T> {

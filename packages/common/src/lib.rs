@@ -5,6 +5,9 @@ mod price;
 mod unsigned_decimal;
 
 pub use asset::{Asset, Euro, PositiveAsset, UnsignedAsset, Usd};
+pub use messages::{
+    BalanceResp, MintFundsResp, Owner, SellDollarsResp, SellEurosResp, ServerRequest, StatusResp,
+};
 pub use positive_decimal::PositiveDecimal;
 pub use price::Price;
 pub use rust_decimal::Decimal;

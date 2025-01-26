@@ -11,7 +11,6 @@ pub struct PositiveDecimal(Decimal);
 
 impl PositiveDecimal {
     pub fn new(value: Decimal) -> Result<Self> {
-        println!("new: {value}");
         if value.is_sign_negative() || value.is_zero() {
             Err(anyhow::anyhow!(
                 "PositiveDecimal::new: received a non-positive value"

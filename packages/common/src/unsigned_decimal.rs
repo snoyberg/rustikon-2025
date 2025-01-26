@@ -4,7 +4,7 @@ use anyhow::Result;
 use rust_decimal::Decimal;
 
 /// A [Decimal] value which is 0 or greater.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
 pub struct UnsignedDecimal(Decimal);
 
 impl UnsignedDecimal {

@@ -1,7 +1,7 @@
-use crate::{Euro, PositiveAsset, UnsignedAsset, Usd};
+use crate::{Euro, PositiveAsset, Price, UnsignedAsset, Usd};
 
 /// Name of an account owner
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
 pub struct Owner(pub String);
 
 /// Messages that can be sent to the server
@@ -11,6 +11,14 @@ pub struct Owner(pub String);
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ServerRequest {
+    /// Get the overall system status.
+    ///
+    /// Returns: [StatusResp]
+    Status {},
+    /// Get the balance for the given owner.
+    ///
+    /// Returns: [BalanceResp]
+    Balance { owner: Owner },
     /// Create new funds for a user.
     ///
     /// Returns: [MintFundsResp]
@@ -36,10 +44,30 @@ pub enum ServerRequest {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+pub struct StatusResp {
+    pub total_usd: UnsignedAsset<Usd>,
+    pub total_euro: UnsignedAsset<Euro>,
+    pub price_usd: Price<Usd, Euro>,
+    pub price_euro: Price<Euro, Usd>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Default)]
+pub struct BalanceResp {
+    pub usd: UnsignedAsset<Usd>,
+    pub euro: UnsignedAsset<Euro>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct MintFundsResp {}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SellDollarsResp {
     ConversionSuccess { euros_bought: PositiveAsset<Euro> },
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SellEurosResp {
+    ConversionSuccess { dollars_bought: PositiveAsset<Usd> },
 }
