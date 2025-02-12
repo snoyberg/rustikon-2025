@@ -9,8 +9,8 @@ use axum::{
     Json, Router,
 };
 use common::{
-    BalanceResp, Euro, MintFundsResp, Owner, PositiveAsset, SellDollarsResp, SellEurosResp,
-    ServerRequest, UnsignedAsset, UnsignedDecimal, Usd,
+    BalanceResp, Euro, MintFundsResp, Owner, PositiveAsset, PositiveDecimal, Price,
+    SellDollarsResp, SellEurosResp, ServerRequest, StatusResp, UnsignedAsset, UnsignedDecimal, Usd,
 };
 use parking_lot::Mutex;
 
@@ -19,9 +19,11 @@ struct AppState(Arc<Mutex<AppStateInner>>);
 
 struct AppStateInner {
     accounts: HashMap<Owner, Balances>,
-    pool: Balances,
+    pool_usd: PositiveAsset<Usd>,
+    pool_euro: PositiveAsset<Euro>,
 }
 
+#[derive(Default)]
 struct Balances {
     usd: UnsignedDecimal,
     euro: UnsignedDecimal,
@@ -31,10 +33,8 @@ struct Balances {
 async fn main() {
     let app_state = AppState(Arc::new(Mutex::new(AppStateInner {
         accounts: HashMap::new(),
-        pool: Balances {
-            usd: "103000".parse().unwrap(),
-            euro: "100000".parse().unwrap(),
-        },
+        pool_usd: "103000USD".parse().unwrap(),
+        pool_euro: "100000EURO".parse().unwrap(),
     })));
     let app = Router::new()
         .route("/", post(handler))
@@ -60,7 +60,7 @@ async fn handler(State(app): State<AppState>, Json(req): Json<ServerRequest>) ->
 
 async fn handler_inner(app: &AppState, req: ServerRequest) -> Result<Response> {
     match req {
-        ServerRequest::Status {} => todo!(),
+        ServerRequest::Status {} => app.status().await.map(|res| Json(res).into_response()),
         ServerRequest::Balance { owner } => app
             .balance(&owner)
             .await
@@ -85,8 +85,29 @@ async fn handler_inner(app: &AppState, req: ServerRequest) -> Result<Response> {
 }
 
 impl AppState {
+    async fn status(&self) -> Result<StatusResp> {
+        let mut total_usd = UnsignedAsset::zero(Usd);
+        let mut total_euro = UnsignedAsset::zero(Euro);
+
+        let guard = self.0.lock();
+
+        for balance in guard.accounts.values() {
+            total_usd += UnsignedAsset::new(Usd, balance.usd);
+            total_euro += UnsignedAsset::new(Euro, balance.euro);
+        }
+
+        total_usd += guard.pool_usd.into_unsigned();
+        total_euro += guard.pool_euro.into_unsigned();
+
+        Ok(StatusResp {
+            total_usd,
+            total_euro,
+            price_usd: Price::from_asset_ratios(guard.pool_usd, guard.pool_euro)?,
+            price_euro: Price::from_asset_ratios(guard.pool_euro, guard.pool_usd)?,
+        })
+    }
     async fn balance(&self, owner: &Owner) -> Result<BalanceResp> {
-        Ok(self.0.lock().accounts.get(&owner).map_or_else(
+        Ok(self.0.lock().accounts.get(owner).map_or_else(
             BalanceResp::default,
             |Balances { usd, euro }| BalanceResp {
                 usd: UnsignedAsset::new(Usd, *usd),
@@ -101,7 +122,11 @@ impl AppState {
         usd_amount: UnsignedAsset<Usd>,
         euro_amount: UnsignedAsset<Euro>,
     ) -> Result<MintFundsResp> {
-        todo!()
+        let mut guard = self.0.lock();
+        let owner = guard.accounts.entry(recipient).or_default();
+        owner.usd += usd_amount.into_decimal();
+        owner.euro += euro_amount.into_decimal();
+        Ok(MintFundsResp {})
     }
 
     async fn sell_dollars(
@@ -109,7 +134,33 @@ impl AppState {
         trader: Owner,
         dollars: PositiveAsset<Usd>,
     ) -> Result<SellDollarsResp> {
-        todo!()
+        // Pool has a constant, K
+        // K = total USD in pool * total EURO in pool
+        // If you buy or sell, the value K must remain the same
+        let mut guard = self.0.lock();
+
+        let mut pool_usd = guard.pool_usd;
+        let mut pool_euro = guard.pool_euro;
+        let owner = guard.accounts.entry(trader).or_default();
+        owner
+            .usd
+            .checked_sub_assign(dollars.into_unsigned().into_decimal())?;
+
+        let k = pool_usd.into_unsigned().into_decimal().into_decimal()
+            * pool_euro.into_unsigned().into_decimal().into_decimal();
+
+        pool_usd += dollars;
+        let new_pool_euro = k / pool_usd.into_unsigned().into_decimal().into_decimal();
+        let new_pool_euro = PositiveAsset::new(Euro, PositiveDecimal::new(new_pool_euro)?);
+
+        let euros_bought = pool_euro.checked_sub(new_pool_euro)?;
+
+        owner.euro += euros_bought.into_unsigned().into_decimal();
+
+        guard.pool_usd = pool_usd;
+        guard.pool_euro = new_pool_euro;
+
+        Ok(SellDollarsResp::ConversionSuccess { euros_bought })
     }
 
     async fn sell_euros(&self, trader: Owner, euros: PositiveAsset<Euro>) -> Result<SellEurosResp> {

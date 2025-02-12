@@ -45,9 +45,13 @@ pub enum ServerRequest {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct StatusResp {
+    /// Total amount of USD in both the pool and held by all users.
     pub total_usd: UnsignedAsset<Usd>,
+    /// Total amount of EURO in both the pool and held by all users.
     pub total_euro: UnsignedAsset<Euro>,
+    /// Price of a single USD in terms of EURO
     pub price_usd: Price<Usd, Euro>,
+    /// Price of a single EURO in terms of USD
     pub price_euro: Price<Euro, Usd>,
 }
 

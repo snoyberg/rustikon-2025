@@ -11,7 +11,7 @@ pub trait Asset: Ord + std::fmt::Debug + Default {
 
 macro_rules! make_asset {
     ($i:ident, $name:expr) => {
-        #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
+        #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Default, Clone, Copy)]
         pub struct $i;
         impl Asset for $i {
             /// $desc
@@ -33,7 +33,22 @@ pub struct PositiveAsset<I> {
     _phantom: PhantomData<I>,
 }
 
+// Avoid having an unnecessary Clone/Copy bound on I.
+impl<I> Clone for PositiveAsset<I> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<I> Copy for PositiveAsset<I> {}
+
 impl<T> PositiveAsset<T> {
+    pub fn new(_: T, value: PositiveDecimal) -> PositiveAsset<T> {
+        PositiveAsset {
+            value,
+            _phantom: PhantomData,
+        }
+    }
+
     pub fn from_static(_: T, value: &'static str) -> PositiveAsset<T> {
         let value = PositiveDecimal::new(value.parse().unwrap()).unwrap();
         PositiveAsset {
@@ -44,6 +59,17 @@ impl<T> PositiveAsset<T> {
 
     pub(crate) fn get_value(&self) -> PositiveDecimal {
         self.value
+    }
+
+    pub fn into_unsigned(&self) -> UnsignedAsset<T> {
+        UnsignedAsset::new_no_hints(self.value.into_unsigned())
+    }
+
+    pub fn checked_sub(&self, rhs: PositiveAsset<T>) -> Result<Self> {
+        Ok(PositiveAsset {
+            value: self.value.checked_sub(rhs.value)?,
+            _phantom: PhantomData,
+        })
     }
 }
 
@@ -113,6 +139,12 @@ pub(crate) fn split_amount_asset(s: &str) -> Result<(&str, &str)> {
     Ok(s.split_at(idx))
 }
 
+impl<T: Asset> std::ops::AddAssign for PositiveAsset<T> {
+    fn add_assign(&mut self, rhs: Self) {
+        self.value += rhs.value;
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct UnsignedAsset<T> {
     value: UnsignedDecimal,
@@ -125,6 +157,24 @@ impl<T> UnsignedAsset<T> {
             value,
             _phantom: PhantomData,
         }
+    }
+
+    pub(crate) fn new_no_hints(value: UnsignedDecimal) -> Self {
+        UnsignedAsset {
+            value,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn zero(_: T) -> Self {
+        UnsignedAsset {
+            value: UnsignedDecimal::zero(),
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn into_decimal(self) -> UnsignedDecimal {
+        self.value
     }
 }
 
@@ -173,13 +223,30 @@ impl<T: Asset> FromStr for UnsignedAsset<T> {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (x, y) = s.split_once(|c: char| c.is_alphabetic()).unwrap();
-        panic!("{s} {x} {y}")
+        let (value, asset) = split_amount_asset(s)?;
+        anyhow::ensure!(
+            asset == T::as_str(),
+            "Unexpected asset string {asset} found, expected {}",
+            T::as_str()
+        );
+        let value = value.parse()?;
+        Ok(UnsignedAsset {
+            value,
+            _phantom: PhantomData,
+        })
+    }
+}
+
+impl<T: Asset> std::ops::AddAssign for UnsignedAsset<T> {
+    fn add_assign(&mut self, rhs: Self) {
+        self.value += rhs.value;
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use asset::split_amount_asset;
 
     use crate::*;
@@ -216,5 +283,14 @@ mod tests {
         serde_json::from_str::<PositiveAsset<Usd>>("\"0.1USD\"").unwrap();
         serde_json::from_str::<PositiveAsset<Usd>>("\"0.aUSD\"").unwrap_err();
         serde_json::from_str::<PositiveAsset<Usd>>("\"0USD\"").unwrap_err();
+    }
+
+    #[test]
+    fn parse_negative_unsigned_asset() {
+        UnsignedAsset::<Usd>::from_str("-5000USD").unwrap_err();
+        assert_eq!(
+            UnsignedAsset::<Usd>::from_str("5000USD").unwrap(),
+            UnsignedAsset::new(Usd, UnsignedDecimal::new("5000".parse().unwrap()).unwrap())
+        )
     }
 }

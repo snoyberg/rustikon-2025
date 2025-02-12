@@ -16,6 +16,18 @@ impl UnsignedDecimal {
             Ok(UnsignedDecimal(decimal))
         }
     }
+
+    pub(crate) fn zero() -> UnsignedDecimal {
+        UnsignedDecimal(Decimal::ZERO)
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+
+    pub fn into_decimal(self) -> Decimal {
+        self.0
+    }
 }
 
 impl From<UnsignedDecimal> for Decimal {
@@ -43,5 +55,24 @@ impl FromStr for UnsignedDecimal {
 
     fn from_str(s: &str) -> Result<Self> {
         UnsignedDecimal::new(s.parse()?)
+    }
+}
+
+impl std::ops::AddAssign for UnsignedDecimal {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl UnsignedDecimal {
+    pub fn checked_sub_assign(&mut self, rhs: Self) -> Result<()> {
+        anyhow::ensure!(
+            self.0 >= rhs.0,
+            "Cannot subtract for UnsignedDecimal: {} - {}",
+            self.0,
+            rhs.0
+        );
+        self.0 -= rhs.0;
+        Ok(())
     }
 }

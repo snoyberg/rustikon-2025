@@ -19,6 +19,15 @@ impl PositiveDecimal {
             Ok(PositiveDecimal(value))
         }
     }
+
+    pub(crate) fn into_unsigned(self) -> UnsignedDecimal {
+        UnsignedDecimal::new(self.0).expect("Impossible occured, PositiveDecimal::into_unsigned")
+    }
+
+    pub(crate) fn checked_sub(&self, rhs: PositiveDecimal) -> Result<Self> {
+        anyhow::ensure!(self.0 >= rhs.0);
+        Ok(PositiveDecimal(self.0 - rhs.0))
+    }
 }
 
 impl Display for PositiveDecimal {
@@ -32,6 +41,12 @@ impl FromStr for PositiveDecimal {
 
     fn from_str(s: &str) -> Result<Self> {
         PositiveDecimal::new(s.parse()?)
+    }
+}
+
+impl std::ops::AddAssign for PositiveDecimal {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
     }
 }
 
