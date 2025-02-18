@@ -140,7 +140,7 @@ impl AppState {
         let mut guard = self.0.lock();
 
         let mut pool_usd = guard.pool_usd;
-        let mut pool_euro = guard.pool_euro;
+        let pool_euro = guard.pool_euro;
         let owner = guard.accounts.entry(trader).or_default();
         owner
             .usd
@@ -163,6 +163,29 @@ impl AppState {
     }
 
     async fn sell_euros(&self, trader: Owner, euros: PositiveAsset<Euro>) -> Result<SellEurosResp> {
-        todo!()
+        // Same as sell_dollars but in reverse
+        let mut guard = self.0.lock();
+
+        let pool_usd = guard.pool_usd;
+        let mut pool_euro = guard.pool_euro;
+        let owner = guard.accounts.entry(trader).or_default();
+        owner
+            .usd
+            .checked_sub_assign(euros.into_unsigned().into_decimal())?;
+
+        let k = pool_usd.into_unsigned().into_decimal() * pool_euro.into_unsigned().into_decimal();
+
+        pool_euro += euros;
+        let new_pool_dollar = k / pool_euro.into_unsigned().into_decimal();
+        let new_pool_dollar = PositiveAsset::new(Usd, PositiveDecimal::new(new_pool_dollar)?);
+
+        let dollars_bought = pool_usd.checked_sub(new_pool_dollar)?;
+
+        owner.usd += dollars_bought.into_unsigned().into_decimal();
+
+        guard.pool_usd = new_pool_dollar;
+        guard.pool_euro = pool_euro;
+
+        Ok(SellEurosResp::ConversionSuccess { dollars_bought })
     }
 }
