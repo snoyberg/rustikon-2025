@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
 use anyhow::Result;
 use axum::{
@@ -9,7 +9,7 @@ use axum::{
     Json, Router,
 };
 use common::{
-    BalanceResp, Euro, MintFundsResp, Owner, PositiveAsset, PositiveDecimal, Price,
+    BalanceResp, Euro, ListOwnersResp, MintFundsResp, Owner, PositiveAsset, PositiveDecimal, Price,
     SellDollarsResp, SellEurosResp, ServerRequest, StatusResp, UnsignedAsset, UnsignedDecimal, Usd,
 };
 use parking_lot::Mutex;
@@ -18,7 +18,7 @@ use parking_lot::Mutex;
 struct AppState(Arc<Mutex<AppStateInner>>);
 
 struct AppStateInner {
-    accounts: HashMap<Owner, Balances>,
+    accounts: BTreeMap<Owner, Balances>,
     pool_usd: PositiveAsset<Usd>,
     pool_euro: PositiveAsset<Euro>,
 }
@@ -32,7 +32,7 @@ struct Balances {
 #[tokio::main]
 async fn main() {
     let app_state = AppState(Arc::new(Mutex::new(AppStateInner {
-        accounts: HashMap::new(),
+        accounts: BTreeMap::new(),
         pool_usd: "103000USD".parse().unwrap(),
         pool_euro: "100000EURO".parse().unwrap(),
     })));
@@ -79,6 +79,10 @@ async fn handler_inner(app: &AppState, req: ServerRequest) -> Result<Response> {
             .map(|res| Json(res).into_response()),
         ServerRequest::SellEuros { trader, euros } => app
             .sell_euros(trader, euros)
+            .await
+            .map(|res| Json(res).into_response()),
+        ServerRequest::ListOwners { start_after } => app
+            .list_owners(start_after)
             .await
             .map(|res| Json(res).into_response()),
     }
@@ -159,7 +163,7 @@ impl AppState {
         guard.pool_usd = pool_usd;
         guard.pool_euro = new_pool_euro;
 
-        Ok(SellDollarsResp::ConversionSuccess { euros_bought })
+        Ok(SellDollarsResp { euros_bought })
     }
 
     async fn sell_euros(&self, trader: Owner, euros: PositiveAsset<Euro>) -> Result<SellEurosResp> {
@@ -186,6 +190,24 @@ impl AppState {
         guard.pool_usd = new_pool_dollar;
         guard.pool_euro = pool_euro;
 
-        Ok(SellEurosResp::ConversionSuccess { dollars_bought })
+        Ok(SellEurosResp { dollars_bought })
+    }
+
+    async fn list_owners(&self, start_after: Option<Owner>) -> Result<ListOwnersResp> {
+        const LIMIT: usize = 10;
+        let guard = self.0.lock();
+
+        let owners = match start_after {
+            Some(start_after) => guard
+                .accounts
+                .keys()
+                .skip_while(|s| *s <= &start_after)
+                .take(LIMIT)
+                .cloned()
+                .collect(),
+            None => guard.accounts.keys().take(LIMIT).cloned().collect(),
+        };
+
+        Ok(ListOwnersResp { owners })
     }
 }

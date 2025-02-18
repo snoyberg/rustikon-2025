@@ -1,7 +1,7 @@
 use crate::{Euro, PositiveAsset, Price, UnsignedAsset, Usd};
 
 /// Name of an account owner
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub struct Owner(pub String);
 
 /// Messages that can be sent to the server
@@ -41,6 +41,11 @@ pub enum ServerRequest {
         trader: Owner,
         euros: PositiveAsset<Euro>,
     },
+    /// Enumerate owners of dollars and euros
+    ListOwners {
+        /// The last owner seen, if any.
+        start_after: Option<Owner>,
+    },
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -66,12 +71,18 @@ pub struct MintFundsResp {}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SellDollarsResp {
-    ConversionSuccess { euros_bought: PositiveAsset<Euro> },
+pub struct SellDollarsResp {
+    pub euros_bought: PositiveAsset<Euro>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SellEurosResp {
-    ConversionSuccess { dollars_bought: PositiveAsset<Usd> },
+pub struct SellEurosResp {
+    pub dollars_bought: PositiveAsset<Usd>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ListOwnersResp {
+    pub owners: Vec<Owner>,
 }
