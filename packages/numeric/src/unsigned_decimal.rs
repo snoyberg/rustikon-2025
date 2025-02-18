@@ -16,7 +16,7 @@ mod private {
         pub(crate) fn from_raw_value(value: u128) -> Self {
             UnsignedDecimal { value }
         }
-        pub(crate) fn to_raw_value(&self) -> u128 {
+        pub(crate) fn get_raw_value(&self) -> u128 {
             self.value
         }
     }
@@ -45,7 +45,7 @@ impl FromStr for UnsignedDecimal {
 
 impl Display for UnsignedDecimal {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let value = self.to_raw_value();
+        let value = self.get_raw_value();
         let whole = value / MULTIPLIER;
         let mut fraction = value % MULTIPLIER;
         if fraction == 0 {
@@ -69,7 +69,18 @@ impl std::ops::Add for UnsignedDecimal {
     type Output = UnsignedDecimal;
 
     fn add(self, rhs: Self) -> Self::Output {
-        UnsignedDecimal::from_raw_value(self.to_raw_value() + rhs.to_raw_value())
+        UnsignedDecimal::from_raw_value(self.get_raw_value() + rhs.get_raw_value())
+    }
+}
+
+impl std::ops::Sub for UnsignedDecimal {
+    type Output = UnsignedDecimal;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let x = self.get_raw_value();
+        let y = rhs.get_raw_value();
+        assert!(x >= y);
+        UnsignedDecimal::from_raw_value(x - y)
     }
 }
 
@@ -95,6 +106,16 @@ mod tests {
         let y: UnsignedDecimal = "3.5".parse().unwrap();
         let z = x + y;
         assert_eq!(z.to_string(), "5.7");
+        let z2: UnsignedDecimal = z.to_string().parse().unwrap();
+        assert_eq!(z, z2);
+    }
+
+    #[test]
+    fn test_basic_subtraction() {
+        let x: UnsignedDecimal = "2.2".parse().unwrap();
+        let y: UnsignedDecimal = "3.5".parse().unwrap();
+        let z = y - x;
+        assert_eq!(z.to_string(), "1.3");
         let z2: UnsignedDecimal = z.to_string().parse().unwrap();
         assert_eq!(z, z2);
     }
