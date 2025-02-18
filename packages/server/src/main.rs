@@ -102,8 +102,8 @@ impl AppState {
         Ok(StatusResp {
             total_usd,
             total_euro,
-            price_usd: Price::from_asset_ratios(guard.pool_usd, guard.pool_euro)?,
-            price_euro: Price::from_asset_ratios(guard.pool_euro, guard.pool_usd)?,
+            price_usd: Price::from_asset_ratios(guard.pool_usd, guard.pool_euro),
+            price_euro: Price::from_asset_ratios(guard.pool_euro, guard.pool_usd),
         })
     }
     async fn balance(&self, owner: &Owner) -> Result<BalanceResp> {
@@ -146,11 +146,10 @@ impl AppState {
             .usd
             .checked_sub_assign(dollars.into_unsigned().into_decimal())?;
 
-        let k = pool_usd.into_unsigned().into_decimal().into_decimal()
-            * pool_euro.into_unsigned().into_decimal().into_decimal();
+        let k = pool_usd.into_unsigned().into_decimal() * pool_euro.into_unsigned().into_decimal();
 
         pool_usd += dollars;
-        let new_pool_euro = k / pool_usd.into_unsigned().into_decimal().into_decimal();
+        let new_pool_euro = k / pool_usd.into_unsigned().into_decimal();
         let new_pool_euro = PositiveAsset::new(Euro, PositiveDecimal::new(new_pool_euro)?);
 
         let euros_bought = pool_euro.checked_sub(new_pool_euro)?;

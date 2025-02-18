@@ -1,8 +1,7 @@
 use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
 use anyhow::{Context, Result};
-
-use crate::{positive_decimal::PositiveDecimal, UnsignedDecimal};
+use numeric::{PositiveDecimal, UnsignedDecimal};
 
 /// Any type that represents an asset type.
 pub trait Asset: Ord + std::fmt::Debug + Default {
@@ -50,7 +49,7 @@ impl<T> PositiveAsset<T> {
     }
 
     pub fn from_static(_: T, value: &'static str) -> PositiveAsset<T> {
-        let value = PositiveDecimal::new(value.parse().unwrap()).unwrap();
+        let value = value.parse().unwrap();
         PositiveAsset {
             value,
             _phantom: PhantomData,
@@ -62,7 +61,7 @@ impl<T> PositiveAsset<T> {
     }
 
     pub fn into_unsigned(&self) -> UnsignedAsset<T> {
-        UnsignedAsset::new_no_hints(self.value.into_unsigned())
+        UnsignedAsset::new_no_hints(self.value.get_unsigned())
     }
 
     pub fn checked_sub(&self, rhs: PositiveAsset<T>) -> Result<Self> {
@@ -290,7 +289,7 @@ mod tests {
         UnsignedAsset::<Usd>::from_str("-5000USD").unwrap_err();
         assert_eq!(
             UnsignedAsset::<Usd>::from_str("5000USD").unwrap(),
-            UnsignedAsset::new(Usd, UnsignedDecimal::new("5000".parse().unwrap()).unwrap())
+            UnsignedAsset::new(Usd, "5000".parse().unwrap())
         )
     }
 }

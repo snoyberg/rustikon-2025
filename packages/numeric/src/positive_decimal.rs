@@ -3,9 +3,12 @@ use std::{
     str::FromStr,
 };
 
+use anyhow::Result;
 pub use private::PositiveDecimal;
 
 mod private {
+    use anyhow::Result;
+
     use crate::UnsignedDecimal;
 
     /// A version of [UnsignedDecimal] which disallows the value 0.
@@ -16,11 +19,14 @@ mod private {
     }
 
     impl PositiveDecimal {
-        pub(crate) fn from_raw_value(value: UnsignedDecimal) -> anyhow::Result<Self> {
+        /// Generate a new value, checking that the input is not 0.
+        pub fn new(value: UnsignedDecimal) -> Result<Self> {
             anyhow::ensure!(value.get_raw_value() != 0, "PositiveDecimal cannot be 0");
             Ok(PositiveDecimal { value })
         }
-        pub(crate) fn get_raw_value(&self) -> UnsignedDecimal {
+
+        /// Get the raw unsigned value.
+        pub fn get_unsigned(&self) -> UnsignedDecimal {
             self.value
         }
     }
@@ -30,13 +36,13 @@ impl FromStr for PositiveDecimal {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse().and_then(PositiveDecimal::from_raw_value)
+        s.parse().and_then(PositiveDecimal::new)
     }
 }
 
 impl Display for PositiveDecimal {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.get_raw_value())
+        write!(f, "{}", self.get_unsigned())
     }
 }
 
@@ -50,7 +56,29 @@ impl std::ops::Add for PositiveDecimal {
     type Output = PositiveDecimal;
 
     fn add(self, rhs: Self) -> Self::Output {
-        PositiveDecimal::from_raw_value(self.get_raw_value() + rhs.get_raw_value()).unwrap()
+        PositiveDecimal::new(self.get_unsigned() + rhs.get_unsigned()).unwrap()
+    }
+}
+
+impl std::ops::AddAssign for PositiveDecimal {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
+impl PositiveDecimal {
+    pub fn checked_sub(self, rhs: Self) -> Result<Self> {
+        self.get_unsigned()
+            .checked_sub(rhs.get_unsigned())
+            .and_then(PositiveDecimal::new)
+    }
+}
+
+impl std::ops::Div for PositiveDecimal {
+    type Output = PositiveDecimal;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        PositiveDecimal::new(self.get_unsigned() / rhs.get_unsigned()).unwrap()
     }
 }
 
@@ -60,10 +88,10 @@ mod tests {
 
     #[test]
     fn test_basic_addition() {
-        let x: PositiveDecimal = "-2.2".parse().unwrap();
+        let x: PositiveDecimal = "2.2".parse().unwrap();
         let y: PositiveDecimal = "3.5".parse().unwrap();
         let z = x + y;
-        assert_eq!(z.to_string(), "1.3");
+        assert_eq!(z.to_string(), "5.7");
         let z2: PositiveDecimal = z.to_string().parse().unwrap();
         assert_eq!(z, z2);
     }

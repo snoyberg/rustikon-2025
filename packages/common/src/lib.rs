@@ -1,17 +1,13 @@
 mod asset;
 mod messages;
-mod positive_decimal;
 mod price;
-mod unsigned_decimal;
 
 pub use asset::{Asset, Euro, PositiveAsset, UnsignedAsset, Usd};
 pub use messages::{
     BalanceResp, MintFundsResp, Owner, SellDollarsResp, SellEurosResp, ServerRequest, StatusResp,
 };
-pub use positive_decimal::PositiveDecimal;
+pub use numeric::{PositiveDecimal, SignedDecimal, UnsignedDecimal};
 pub use price::Price;
-pub use rust_decimal::Decimal;
-pub use unsigned_decimal::UnsignedDecimal;
 
 /// Some amount of an asset
 pub struct Amount<Asset> {

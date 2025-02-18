@@ -3,6 +3,7 @@ use std::{
     str::FromStr,
 };
 
+use anyhow::Result;
 pub use private::UnsignedDecimal;
 
 mod private {
@@ -24,6 +25,18 @@ mod private {
 
 const MULTIPLIER: u128 = 1_000_000;
 
+impl UnsignedDecimal {
+    pub fn zero() -> Self {
+        UnsignedDecimal::from_raw_value(0)
+    }
+}
+
+impl Default for UnsignedDecimal {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
 impl FromStr for UnsignedDecimal {
     type Err = anyhow::Error;
 
@@ -41,6 +54,18 @@ impl FromStr for UnsignedDecimal {
 
         Ok(UnsignedDecimal::from_raw_value(value))
     }
+}
+
+fn parse_fraction(s: &str) -> Result<u128> {
+    anyhow::ensure!(
+        s.len() <= 6,
+        "Unsigned decimal only supports up to 6 decimal points"
+    );
+    let mut x = s.parse()?;
+    for _ in s.len()..6 {
+        x *= 10;
+    }
+    Ok(x)
 }
 
 impl Display for UnsignedDecimal {
@@ -73,27 +98,50 @@ impl std::ops::Add for UnsignedDecimal {
     }
 }
 
-impl std::ops::Sub for UnsignedDecimal {
-    type Output = UnsignedDecimal;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        let x = self.get_raw_value();
-        let y = rhs.get_raw_value();
-        assert!(x >= y);
-        UnsignedDecimal::from_raw_value(x - y)
+impl std::ops::AddAssign for UnsignedDecimal {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
     }
 }
 
-fn parse_fraction(s: &str) -> anyhow::Result<u128> {
-    anyhow::ensure!(
-        s.len() <= 6,
-        "Unsigned decimal only supports up to 6 decimal points"
-    );
-    let mut x = s.parse()?;
-    for _ in s.len()..6 {
-        x *= 10;
+impl UnsignedDecimal {
+    pub fn checked_sub(&self, rhs: Self) -> Result<UnsignedDecimal> {
+        let x = self.get_raw_value();
+        let y = rhs.get_raw_value();
+        if x >= y {
+            Ok(UnsignedDecimal::from_raw_value(x - y))
+        } else {
+            Err(anyhow::anyhow!(
+                "UnsignedDecimal: cannot subtract {x} - {y}"
+            ))
+        }
     }
-    Ok(x)
+
+    pub fn checked_sub_assign(&mut self, rhs: UnsignedDecimal) -> Result<()> {
+        match self.checked_sub(rhs) {
+            Ok(value) => {
+                *self = value;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl std::ops::Mul for UnsignedDecimal {
+    type Output = UnsignedDecimal;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        UnsignedDecimal::from_raw_value(self.get_raw_value() * rhs.get_raw_value() / MULTIPLIER)
+    }
+}
+
+impl std::ops::Div for UnsignedDecimal {
+    type Output = UnsignedDecimal;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        UnsignedDecimal::from_raw_value(self.get_raw_value() * MULTIPLIER / rhs.get_raw_value())
+    }
 }
 
 #[cfg(test)]
@@ -114,7 +162,8 @@ mod tests {
     fn test_basic_subtraction() {
         let x: UnsignedDecimal = "2.2".parse().unwrap();
         let y: UnsignedDecimal = "3.5".parse().unwrap();
-        let z = y - x;
+        let z = y.checked_sub(x).unwrap();
+        x.checked_sub(y).unwrap_err();
         assert_eq!(z.to_string(), "1.3");
         let z2: UnsignedDecimal = z.to_string().parse().unwrap();
         assert_eq!(z, z2);
@@ -153,5 +202,17 @@ mod tests {
             let x: UnsignedDecimal = s.parse().unwrap();
             assert_eq!(format!("{x:?}"), s);
         }
+    }
+
+    #[test]
+    fn test_multiplication() {
+        let p = |s| UnsignedDecimal::from_str(s).unwrap();
+        assert_eq!(p("2.5"), p("5") * p("0.5"));
+    }
+
+    #[test]
+    fn test_division() {
+        let p = |s| UnsignedDecimal::from_str(s).unwrap();
+        assert_eq!(p("2.5"), p("5") / p("2"));
     }
 }

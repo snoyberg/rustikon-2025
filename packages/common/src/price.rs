@@ -1,11 +1,11 @@
 use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
+use numeric::PositiveDecimal;
 use serde::de::Visitor;
 
 use crate::{
     asset::{split_amount_asset, PositiveAsset},
-    positive_decimal::PositiveDecimal,
     Asset,
 };
 
@@ -21,13 +21,12 @@ impl<Base, Quote> Price<Base, Quote> {
     pub fn from_asset_ratios(
         base: PositiveAsset<Base>,
         quote: PositiveAsset<Quote>,
-    ) -> Result<Price<Base, Quote>> {
-        let price = quote.get_value() / base.get_value();
-        Ok(Price {
-            price: price.try_into()?,
+    ) -> Price<Base, Quote> {
+        Price {
+            price: quote.get_value() / base.get_value(),
             _base: PhantomData,
             _quote: PhantomData,
-        })
+        }
     }
 }
 
@@ -117,8 +116,8 @@ mod tests {
     fn price_display_is_correct() {
         let usd = PositiveAsset::from_static(Usd, "11000");
         let euro = PositiveAsset::from_static(Euro, "10000");
-        let price = Price::from_asset_ratios(euro, usd).unwrap();
-        assert_eq!(price.to_string(), "1.10 USD/EURO");
+        let price = Price::from_asset_ratios(euro, usd);
+        assert_eq!(price.to_string(), "1.1 USD/EURO");
         assert_eq!(price, price.to_string().parse().unwrap());
 
         let json = serde_json::to_string(&price).unwrap();
@@ -128,7 +127,7 @@ mod tests {
 
         let btc = PositiveAsset::from_static(Bitcoin, "0.5");
         let euro = PositiveAsset::from_static(Euro, "55000");
-        let price = Price::from_asset_ratios(btc, euro).unwrap();
+        let price = Price::from_asset_ratios(btc, euro);
         assert_eq!(price.to_string(), "110000 EURO/BTC");
     }
 }

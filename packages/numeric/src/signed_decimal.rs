@@ -96,9 +96,9 @@ impl std::ops::Sub for SignedDecimal {
                 let x = self.get_raw_value();
                 let y = rhs.get_raw_value();
                 if x > y {
-                    SignedDecimal::from_raw_value(x - y, false)
+                    SignedDecimal::from_raw_value(x.checked_sub(y).unwrap(), false)
                 } else {
-                    SignedDecimal::from_raw_value(y - x, true)
+                    SignedDecimal::from_raw_value(y.checked_sub(x).unwrap(), true)
                 }
             }
             (false, true) => self + rhs.negate(),
