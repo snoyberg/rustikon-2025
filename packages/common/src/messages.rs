@@ -1,8 +1,18 @@
+use std::fmt::Display;
+
 use crate::{Euro, PositiveAsset, Price, UnsignedAsset, Usd};
 
 /// Name of an account owner
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+#[derive(
+    serde::Serialize, serde::Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug,
+)]
 pub struct Owner(pub String);
+
+impl Display for Owner {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 
 /// Messages that can be sent to the server
 ///
@@ -48,7 +58,7 @@ pub enum ServerRequest {
     },
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct StatusResp {
     /// Total amount of USD in both the pool and held by all users.
     pub total_usd: UnsignedAsset<Usd>,
@@ -60,28 +70,28 @@ pub struct StatusResp {
     pub price_euro: Price<Euro, Usd>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
 pub struct BalanceResp {
     pub usd: UnsignedAsset<Usd>,
     pub euro: UnsignedAsset<Euro>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct MintFundsResp {}
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct SellDollarsResp {
     pub euros_bought: PositiveAsset<Euro>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct SellEurosResp {
     pub dollars_bought: PositiveAsset<Usd>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct ListOwnersResp {
     pub owners: Vec<Owner>,

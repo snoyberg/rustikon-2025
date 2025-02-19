@@ -1,5 +1,8 @@
-use leptos::prelude::*;
+mod error;
+mod prelude;
+mod query;
+mod view;
 
 fn main() {
-    leptos::mount::mount_to_body(|| view! { <p>"Hello, world!"</p> })
+    leptos::mount_to_body(view::App)
 }

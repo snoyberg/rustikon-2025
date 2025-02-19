@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use anyhow::Result;
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::{header::CONTENT_TYPE, Method, StatusCode},
     response::{IntoResponse, Response},
     routing::post,
     Json, Router,
@@ -13,6 +13,7 @@ use common::{
     SellDollarsResp, SellEurosResp, ServerRequest, StatusResp, UnsignedAsset, UnsignedDecimal, Usd,
 };
 use parking_lot::Mutex;
+use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Clone)]
 struct AppState(Arc<Mutex<AppStateInner>>);
@@ -36,8 +37,15 @@ async fn main() {
         pool_usd: "103000USD".parse().unwrap(),
         pool_euro: "100000EURO".parse().unwrap(),
     })));
+
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST])
+        .allow_origin(Any)
+        .allow_headers([CONTENT_TYPE]);
+
     let app = Router::new()
         .route("/", post(handler))
+        .layer(cors)
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await.unwrap();

@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// The price of the base asset in terms of the quote.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Price<Base, Quote> {
     price: PositiveDecimal,
     _base: PhantomData<Base>,

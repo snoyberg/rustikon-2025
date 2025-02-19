@@ -144,7 +144,7 @@ impl<T: Asset> std::ops::AddAssign for PositiveAsset<T> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Default, Clone)]
 pub struct UnsignedAsset<T> {
     value: UnsignedDecimal,
     _phantom: PhantomData<T>,
