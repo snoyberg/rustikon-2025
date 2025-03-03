@@ -143,7 +143,7 @@ impl<T: Asset> std::ops::AddAssign for PositiveAsset<T> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
 pub struct UnsignedAsset<T> {
     value: UnsignedDecimal,
     _phantom: PhantomData<T>,
@@ -173,6 +173,10 @@ impl<T> UnsignedAsset<T> {
 
     pub fn into_decimal(self) -> UnsignedDecimal {
         self.value
+    }
+
+    pub fn checked_sub_assign(&mut self, rhs: Self) -> Result<()> {
+        self.value.checked_sub_assign(rhs.into_decimal())
     }
 }
 

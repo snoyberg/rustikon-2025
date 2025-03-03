@@ -10,7 +10,7 @@ use axum::{
 };
 use common::{
     BalanceResp, Euro, ListOwnersResp, MintFundsResp, Owner, PositiveAsset, PositiveDecimal, Price,
-    SellDollarsResp, SellEurosResp, ServerRequest, StatusResp, UnsignedAsset, UnsignedDecimal, Usd,
+    SellDollarsResp, SellEurosResp, ServerRequest, StatusResp, UnsignedAsset, Usd,
 };
 use parking_lot::Mutex;
 use tower_http::cors::{Any, CorsLayer};
@@ -26,8 +26,8 @@ struct AppStateInner {
 
 #[derive(Default)]
 struct Balances {
-    usd: UnsignedDecimal,
-    euro: UnsignedDecimal,
+    usd: UnsignedAsset<Usd>,
+    euro: UnsignedAsset<Euro>,
 }
 
 #[tokio::main]
@@ -104,8 +104,8 @@ impl AppState {
         let guard = self.0.lock();
 
         for balance in guard.accounts.values() {
-            total_usd += UnsignedAsset::new(Usd, balance.usd);
-            total_euro += UnsignedAsset::new(Euro, balance.euro);
+            total_usd += balance.usd;
+            total_euro += balance.euro;
         }
 
         total_usd += guard.pool_usd.into_unsigned();
@@ -122,8 +122,8 @@ impl AppState {
         Ok(self.0.lock().accounts.get(owner).map_or_else(
             BalanceResp::default,
             |Balances { usd, euro }| BalanceResp {
-                usd: UnsignedAsset::new(Usd, *usd),
-                euro: UnsignedAsset::new(Euro, *euro),
+                usd: *usd,
+                euro: *euro,
             },
         ))
     }
@@ -136,8 +136,8 @@ impl AppState {
     ) -> Result<MintFundsResp> {
         let mut guard = self.0.lock();
         let owner = guard.accounts.entry(recipient).or_default();
-        owner.usd += usd_amount.into_decimal();
-        owner.euro += euro_amount.into_decimal();
+        owner.usd += usd_amount;
+        owner.euro += euro_amount;
         Ok(MintFundsResp {})
     }
 
@@ -154,9 +154,7 @@ impl AppState {
         let mut pool_usd = guard.pool_usd;
         let pool_euro = guard.pool_euro;
         let owner = guard.accounts.entry(trader).or_default();
-        owner
-            .usd
-            .checked_sub_assign(dollars.into_unsigned().into_decimal())?;
+        owner.usd.checked_sub_assign(dollars.into_unsigned())?;
 
         let k = pool_usd.into_unsigned().into_decimal() * pool_euro.into_unsigned().into_decimal();
 
@@ -166,7 +164,7 @@ impl AppState {
 
         let euros_bought = pool_euro.checked_sub(new_pool_euro)?;
 
-        owner.euro += euros_bought.into_unsigned().into_decimal();
+        owner.euro += euros_bought.into_unsigned();
 
         guard.pool_usd = pool_usd;
         guard.pool_euro = new_pool_euro;
@@ -181,9 +179,7 @@ impl AppState {
         let pool_usd = guard.pool_usd;
         let mut pool_euro = guard.pool_euro;
         let owner = guard.accounts.entry(trader).or_default();
-        owner
-            .euro
-            .checked_sub_assign(euros.into_unsigned().into_decimal())?;
+        owner.euro.checked_sub_assign(euros.into_unsigned())?;
 
         let k = pool_usd.into_unsigned().into_decimal() * pool_euro.into_unsigned().into_decimal();
 
@@ -193,7 +189,7 @@ impl AppState {
 
         let dollars_bought = pool_usd.checked_sub(new_pool_dollar)?;
 
-        owner.usd += dollars_bought.into_unsigned().into_decimal();
+        owner.usd += dollars_bought.into_unsigned();
 
         guard.pool_usd = new_pool_dollar;
         guard.pool_euro = pool_euro;
