@@ -182,7 +182,7 @@ impl AppState {
         let mut pool_euro = guard.pool_euro;
         let owner = guard.accounts.entry(trader).or_default();
         owner
-            .usd
+            .euro
             .checked_sub_assign(euros.into_unsigned().into_decimal())?;
 
         let k = pool_usd.into_unsigned().into_decimal() * pool_euro.into_unsigned().into_decimal();

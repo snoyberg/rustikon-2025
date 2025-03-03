@@ -13,7 +13,6 @@ macro_rules! make_asset {
         #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Default, Clone, Copy)]
         pub struct $i;
         impl Asset for $i {
-            /// $desc
             fn as_str() -> &'static str {
                 $name
             }
